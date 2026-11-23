@@ -1,0 +1,19 @@
+<!-- Thêm 2 PackageReference của OpenCvSharp4 vào bên trong <ItemGroup> của file WinFormsApp1\QuanLyChamCong.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <!-- Thư viện Camera tương thích tốt với net10.0-windows -->
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.13.0.20261107" />
+    <PackageReference Include="OpenCvSharp4.Extensions" Version="4.13.0.20261107" />
+  </ItemGroup>
+
+</Project>
