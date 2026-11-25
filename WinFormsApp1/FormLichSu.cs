@@ -14,72 +14,69 @@ namespace QuanLyChamCong
         [System.ComponentModel.DesignerSerializationVisibility(
     System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string MaNV { get; set; }
+        [System.ComponentModel.DesignerSerializationVisibility(
+    System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string SessionToken { get; set; } = "";
 
         public FormLichSu()
         {
             InitializeComponent();
         }
 
-        public FormLichSu(string maNV)
+        public FormLichSu(string maNV, string sessionToken)
         {
             InitializeComponent();
+
             MaNV = maNV;
+            SessionToken = sessionToken;
         }
 
         private void btnTaiLichSu_Click(object sender, EventArgs e)
         {
             try
             {
-                using (TcpClient client = new TcpClient())
+                Request request = new Request
                 {
-                    client.Connect("127.0.0.1", 8888);
-
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer =
-                        new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader =
-                        new StreamReader(stream, Encoding.UTF8))
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "HISTORY",
+                    Data = new
                     {
-                        writer.AutoFlush = true;
-                        writer.WriteLine("HISTORY|" + MaNV);
+                        sessionToken = SessionToken
+                    }
+                };
 
-                        string response = reader.ReadLine();
+                Response response = TcpJsonClient.Send(request);
 
-                        if (string.IsNullOrEmpty(response))
-                        {
-                            MessageBox.Show("Server không trả về dữ liệu.");
-                            return;
-                        }
+                if (!response.Success)
+                {
+                    MessageBox.Show(response.Message);
+                    return;
+                }
 
-                        string[] parts = response.Split('|');
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Ngày chấm công");
+                dt.Columns.Add("Giờ vào");
+                dt.Columns.Add("Giờ ra");
+                dt.Columns.Add("Mã ca");
+                dt.Columns.Add("Tên ca");
+                dt.Columns.Add("Trạng thái");
 
-                        if (parts[0] != "SUCCESS" || parts.Length < 2)
-                        {
-                            MessageBox.Show(parts.Length > 1
-                                ? parts[1]
-                                : "Không thể tải lịch sử.");
-                            return;
-                        }
-
-                        DataTable dt = new DataTable();
-                        dt.Columns.Add("Ngày chấm công");
-                        dt.Columns.Add("Giờ vào");
-                        dt.Columns.Add("Giờ ra");
-                        dt.Columns.Add("Trạng thái");
-
-                        string[] rows = parts[1].Split(';');
-
-                        foreach (string row in rows)
-                        {
-                            string[] values = row.Split(',');
-
-                            if (values.Length == 4)
-                                dt.Rows.Add(values);
-                        }
-
-                        dgvLichSu.DataSource = dt;
+                if (response.Data.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (System.Text.Json.JsonElement row in response.Data.EnumerateArray())
+                    {
+                        dt.Rows.Add(
+                            row.GetProperty("ngayChamCong").ToString(),
+                            row.GetProperty("gioVao").ToString(),
+                            row.GetProperty("gioRa").ToString(),
+                            row.GetProperty("maCa").ToString(),
+                            row.GetProperty("tenCa").ToString(),
+                            row.GetProperty("trangThai").ToString()
+                        );
                     }
                 }
+
+                dgvLichSu.DataSource = dt;
             }
             catch (Exception ex)
             {
@@ -94,68 +91,17 @@ namespace QuanLyChamCong
 
         private void btnTaiLichSu_Click_1(object sender, EventArgs e)
         {
-            try
-            {
-                using (TcpClient client = new TcpClient())
-                {
-                    client.Connect("127.0.0.1", 8888);
-
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
-                    {
-                        writer.AutoFlush = true;
-                        writer.WriteLine("HISTORY|" + MaNV);
-
-                        string response = reader.ReadLine();
-
-                        if (string.IsNullOrEmpty(response))
-                        {
-                            MessageBox.Show("Server không trả về dữ liệu.");
-                            return;
-                        }
-
-                        string[] parts = response.Split('|');
-
-                        if (parts[0] != "SUCCESS" || parts.Length < 2)
-                        {
-                            MessageBox.Show(parts.Length > 1
-                                ? parts[1]
-                                : "Không thể tải lịch sử.");
-                            return;
-                        }
-
-                        DataTable dt = new DataTable();
-                        dt.Columns.Add("Ngày chấm công");
-                        dt.Columns.Add("Giờ vào");
-                        dt.Columns.Add("Giờ ra");
-                        dt.Columns.Add("Trạng thái");
-
-                        string[] rows = parts[1].Split(';');
-
-                        foreach (string row in rows)
-                        {
-                            string[] values = row.Split(',');
-
-                            if (values.Length == 4)
-                            {
-                                dt.Rows.Add(values);
-                            }
-                        }
-
-                        dgvLichSu.DataSource = dt;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Lỗi kết nối Server: " + ex.Message);
-            }
+            btnTaiLichSu_Click(sender, e);
         }
 
         private void btnDong_Click_1(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        private void FormLichSu_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

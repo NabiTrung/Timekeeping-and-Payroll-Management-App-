@@ -23,18 +23,26 @@ namespace QuanLyChamCong
         [System.ComponentModel.DesignerSerializationVisibility(
             System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string ChucVu { get; set; }
+        [System.ComponentModel.DesignerSerializationVisibility(
+    System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string SessionToken { get; set; } = "";
         public FormChamCong()
         {
             InitializeComponent();
         }
 
-        public FormChamCong(string maNV, string tenNV, string chucVu)
+        public FormChamCong(
+        string maNV,
+        string tenNV,
+        string chucVu,
+        string sessionToken)
         {
             InitializeComponent();
 
             MaNV = maNV;
             TenNV = tenNV;
             ChucVu = chucVu;
+            SessionToken = sessionToken;
         }
 
         private void FormChamCong_Load(object sender, EventArgs e)
@@ -44,96 +52,112 @@ namespace QuanLyChamCong
             lblChucVu.Text = "Chức vụ: " + ChucVu;
         }
 
+
         private void btnCheckIn_Click(object sender, EventArgs e)
         {
             try
             {
-                using (TcpClient client = new TcpClient())
+                Request request = new Request
                 {
-                    client.Connect("127.0.0.1", 8888);
-
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "CHECKIN",
+                    Data = new
                     {
-                        writer.AutoFlush = true;
-
-                        writer.WriteLine("CHECKIN|" + MaNV);
-
-                        string response = reader.ReadLine();
-
-                        string[] parts = response.Split('|');
-
-                        if (parts.Length >= 2 && parts[0] == "SUCCESS")
-                        {
-                            MessageBox.Show("Chấm công vào thành công!");
-                        }
-                        else
-                        {
-                            MessageBox.Show(
-                                parts.Length >= 2
-                                ? parts[1]
-                                : "Chấm công vào thất bại!");
-                        }
+                        sessionToken = SessionToken
                     }
+                };
+
+                Response response = TcpJsonClient.Send(request);
+
+                if (response.Success)
+                {
+                    MessageBox.Show("Chấm công vào thành công!");
+                }
+                else
+                {
+                    MessageBox.Show(response.Message);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi kết nối Server: " + ex.Message);
+                MessageBox.Show(
+                    "Lỗi kết nối Server: " + ex.Message);
             }
         }
+
+
 
         private void btnCheckOut_Click(object sender, EventArgs e)
         {
             try
             {
-                using (TcpClient client = new TcpClient())
+                Request request = new Request
                 {
-                    client.Connect("127.0.0.1", 8888);
-
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "CHECKOUT",
+                    Data = new
                     {
-                        writer.AutoFlush = true;
-
-                        writer.WriteLine("CHECKOUT|" + MaNV);
-
-                        string response = reader.ReadLine();
-                        string[] parts = response.Split('|');
-
-                        if (parts.Length >= 2 && parts[0] == "SUCCESS")
-                        {
-                            MessageBox.Show("Chấm công ra thành công!");
-                        }
-                        else
-                        {
-                            MessageBox.Show(
-                                parts.Length >= 2
-                                ? parts[1]
-                                : "Chấm công ra thất bại!");
-                        }
+                        sessionToken = SessionToken
                     }
+                };
+
+                Response response = TcpJsonClient.Send(request);
+
+                if (response.Success)
+                {
+                    MessageBox.Show("Chấm công ra thành công!");
+                }
+                else
+                {
+                    MessageBox.Show(response.Message);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi kết nối Server: " + ex.Message);
+                MessageBox.Show(
+                    "Lỗi kết nối Server: " + ex.Message);
             }
         }
 
+
         private void btnLichSu_Click(object sender, EventArgs e)
         {
-            FormLichSu form = new FormLichSu(MaNV);
+            FormLichSu form = new FormLichSu(
+    MaNV, SessionToken);
             form.ShowDialog();
         }
         private void btnDangXuat_Click(object sender, EventArgs e)
         {
-            Form1 form = new Form1();
-            form.Show();
+            try
+            {
+                Request request = new Request
+                {
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "LOGOUT",
+                    Data = new
+                    {
+                        sessionToken = SessionToken
+                    }
+                };
 
-            this.Hide();
+                Response response = TcpJsonClient.Send(request);
+
+                if (response.Success)
+                {
+                    MessageBox.Show("Đăng xuất thành công!");
+
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show(response.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Lỗi kết nối Server: " + ex.Message);
+            }
         }
     }
 }

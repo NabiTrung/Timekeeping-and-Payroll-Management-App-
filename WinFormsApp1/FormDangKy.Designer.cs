@@ -141,6 +141,7 @@
             Controls.Add(btnDangKy);
             Name = "FormDangKy";
             Text = "FormDangKy";
+            Load += FormDangKy_Load;
             ResumeLayout(false);
             PerformLayout();
         }

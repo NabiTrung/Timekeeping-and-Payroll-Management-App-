@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using QuanLyChamCong;
+using System.Text.Json;
 namespace WinFormsApp1
 {
     public partial class Form1 : Form
@@ -13,33 +14,29 @@ namespace WinFormsApp1
             InitializeComponent();
         }
 
+
         private void btnKiemTra_Click(object sender, EventArgs e)
         {
             try
             {
-                using (TcpClient client = new TcpClient())
+                Request request = new Request
                 {
-                    client.Connect("127.0.0.1", 8888);
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "PING"
+                };
 
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
-                    {
-                        writer.AutoFlush = true;
+                Response response = TcpJsonClient.Send(request);
 
-                        writer.WriteLine("PING|");
-
-                        string response = reader.ReadLine();
-
-                        MessageBox.Show(response);
-                    }
-                }
+                MessageBox.Show(response.Message);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Không thể kết nối Server: " + ex.Message);
+                MessageBox.Show(
+                    "Không thể kết nối Server: " + ex.Message);
             }
         }
+
+
 
         private void btnDangNhap_Click(object sender, EventArgs e)
         {
@@ -48,59 +45,71 @@ namespace WinFormsApp1
 
             if (maNV == "" || matKhau == "")
             {
-                MessageBox.Show("Vui lòng nhập mã nhân viên và mật khẩu!");
+                MessageBox.Show(
+                    "Vui lòng nhập mã nhân viên và mật khẩu!");
                 return;
             }
 
             try
             {
-                using (TcpClient client = new TcpClient())
+                Request request = new Request
                 {
-                    client.Connect("127.0.0.1", 8888);
-
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "LOGIN",
+                    Data = new
                     {
-                        writer.AutoFlush = true;
+                        maNV = maNV,
+                        matKhau = matKhau
+                    }
+                };
 
-                        writer.WriteLine("LOGIN|" + maNV + "|" + matKhau);
+                Response response = TcpJsonClient.Send(request);
 
-                        string response = reader.ReadLine();
+                if (response.Success)
+                {
+                    string tenNV = "";
+                    string chucVu = "";
+                    string sessionToken = "";
 
-                        string[] parts = response.Split('|');
-
-                        if (parts.Length >= 3 && parts[0] == "SUCCESS")
+                    if (response.Data.ValueKind == JsonValueKind.Object)
+                    {
+                        if (response.Data.TryGetProperty(
+                            "ten", out JsonElement ten))
                         {
-                            MessageBox.Show("Đăng nhập thành công!\n" +
-                                            "Tên: " + parts[1] + "\n" +
-                                            "Chức vụ: " + parts[2]);
-
-                            string tenNV = parts[1];
-                            string chucVu = parts[2];
-
-                            FormChamCong form = new FormChamCong(
-                                maNV, tenNV, chucVu);
-
-                            this.Hide();
-                            form.ShowDialog();
-                            this.Show();
+                            tenNV = ten.GetString() ?? "";
                         }
-                        else
+
+                        if (response.Data.TryGetProperty(
+    "sessionToken", out JsonElement token))
                         {
-                            MessageBox.Show(
-                                parts.Length >= 2
-                                    ? parts[1]
-                                    : "Đăng nhập thất bại!");
+                            sessionToken = token.GetString() ?? "";
                         }
                     }
+
+                    MessageBox.Show(
+                        "Đăng nhập thành công!\n" +
+                        "Tên: " + tenNV + "\n" +
+                        "Chức vụ: " + chucVu);
+
+                    FormChamCong form = new FormChamCong(
+    maNV, tenNV, chucVu, sessionToken);
+
+                    this.Hide();
+                    form.ShowDialog();
+                    this.Show();
+                }
+                else
+                {
+                    MessageBox.Show(response.Message);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi kết nối Server: " + ex.Message);
+                MessageBox.Show(
+                    "Lỗi kết nối Server: " + ex.Message);
             }
         }
+
 
         private void btnDatLaiMatKhau_Click(object sender, EventArgs e)
         {
@@ -125,6 +134,11 @@ namespace WinFormsApp1
         {
             FormDangKy form = new FormDangKy();
             form.ShowDialog();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

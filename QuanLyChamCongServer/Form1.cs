@@ -64,6 +64,9 @@ namespace QuanLyChamCongServer
             lstNhatKy.Items.Add("Đã gửi yêu cầu dừng Server.");
         }
 
-        
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

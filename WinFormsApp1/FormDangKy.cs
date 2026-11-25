@@ -21,6 +21,7 @@ namespace QuanLyChamCong
 
         }
 
+
         private void btnDangKy_Click(object sender, EventArgs e)
         {
             string maNV = txtMaNV.Text.Trim();
@@ -40,43 +41,44 @@ namespace QuanLyChamCong
                 MessageBox.Show("Mật khẩu xác nhận không khớp!");
                 return;
             }
+
             try
             {
-                using (TcpClient client = new TcpClient())
+                Request request = new Request
                 {
-                    client.Connect("127.0.0.1", 8888);
-
-                    using (NetworkStream stream = client.GetStream())
-                    using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8))
-                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                    RequestId = Guid.NewGuid().ToString(),
+                    Action = "REGISTER",
+                    Data = new
                     {
-                        writer.AutoFlush = true;
-
-                        writer.WriteLine("REGISTER|" + maNV + "|" + ten + "|" + matKhau);
-
-                        string response = reader.ReadLine();
-
-                        string[] parts = response.Split('|');
-
-                        if (parts.Length >= 2 && parts[0] == "SUCCESS")
-                        {
-                            MessageBox.Show("Đăng ký thành công!");
-                            this.Close();
-                        }
-                        else
-                        {
-                            MessageBox.Show(
-                                parts.Length >= 2
-                                ? parts[1]
-                                : "Đăng ký thất bại!");
-                        }
+                        maNV = maNV,
+                        ten = ten,
+                        matKhau = matKhau
                     }
+                };
+
+                Response response = TcpJsonClient.Send(request);
+
+                if (response.Success)
+                {
+                    MessageBox.Show("Đăng ký thành công!");
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show(response.Message);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi kết nối Server: " + ex.Message);
+                MessageBox.Show(
+                    "Lỗi kết nối Server: " + ex.Message);
             }
+        }
+
+
+        private void FormDangKy_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

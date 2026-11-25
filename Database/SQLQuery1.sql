@@ -5,8 +5,9 @@ CREATE TABLE NhanVien
 (
     MaNV VARCHAR(20) PRIMARY KEY,
     Ten NVARCHAR(100) NOT NULL,
-    MatKhau VARCHAR(255) NOT NULL,
+    MatKhauHash VARCHAR(255) NOT NULL,
     ChucVu NVARCHAR(20) NOT NULL DEFAULT N'NhanVien',
+    MucLuong DECIMAL(18,2) NULL,
 
     CONSTRAINT CK_NhanVien_ChucVu
         CHECK (ChucVu IN (N'NhanVien', N'Admin'))

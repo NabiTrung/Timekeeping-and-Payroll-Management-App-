@@ -44,15 +44,15 @@ namespace QuanLyChamCong
                     conn.Open();
 
                     string sql = @"INSERT INTO NhanVien
-                           (MaNV, Ten, MatKhau, ChucVu)
-                           VALUES
-                           (@MaNV, @Ten, @MatKhau, @ChucVu)";
+       (MaNV, Ten, MatKhauHash, ChucVu)
+       VALUES
+       (@MaNV, @Ten, @MatKhauHash, @ChucVu)";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@MaNV", maNV);
                         cmd.Parameters.AddWithValue("@Ten", ten);
-                        cmd.Parameters.AddWithValue("@MatKhau", matKhauHash);
+                        cmd.Parameters.AddWithValue("@MatKhauHash", matKhauHash);
                         cmd.Parameters.AddWithValue("@ChucVu", "NhanVien");
 
                         return cmd.ExecuteNonQuery() > 0;
@@ -64,11 +64,12 @@ namespace QuanLyChamCong
                 return false;
             }
         }
+
         public bool DangNhap(
-    string maNV,
-    string matKhau,
-    out string ten,
-    out string chucVu)
+            string maNV,
+            string matKhau,
+            out string ten,
+            out string chucVu)
         {
             ten = "";
             chucVu = "";
@@ -78,10 +79,13 @@ namespace QuanLyChamCong
                 conn.Open();
 
                 string sql = @"
-            SELECT Ten, MatKhau, ChucVu
+            SELECT Ten, MatKhauHash, ChucVu
             FROM NhanVien
             WHERE MaNV = @MaNV";
 
+                string matKhauDaBam;
+
+                // Buoc 1: Lay thong tin tai khoan
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@MaNV", maNV);
@@ -91,21 +95,53 @@ namespace QuanLyChamCong
                         if (!reader.Read())
                             return false;
 
-                        string matKhauDaBam =
-                            reader["MatKhau"].ToString();
-
-                        if (!PasswordHelper.KiemTraMatKhau(
-                            matKhau, matKhauDaBam))
-                            return false;
-
                         ten = reader["Ten"].ToString();
                         chucVu = reader["ChucVu"].ToString();
 
-                        return true;
+                        matKhauDaBam = reader["MatKhauHash"].ToString();
                     }
                 }
+
+                // Buoc 2: Kiem tra mat khau
+                bool hopLe = PasswordHelper.KiemTraMatKhau(
+                    matKhau,
+                    matKhauDaBam
+                );
+
+                if (!hopLe)
+                    return false;
+
+                // Buoc 3: Neu la PBKDF2 thi chuyen sang BCrypt
+                if (PasswordHelper.CanNangCap(matKhauDaBam))
+                {
+                    string hashMoi = PasswordHelper.BamMatKhau(matKhau);
+
+                    string sqlUpdate = @"
+                UPDATE NhanVien
+                SET MatKhauHash = @MatKhauMoi
+                WHERE MaNV = @MaNV
+                AND MatKhauHash = @MatKhauCu";
+
+                    using (SqlCommand cmdUpdate =
+                        new SqlCommand(sqlUpdate, conn))
+                    {
+                        cmdUpdate.Parameters.AddWithValue(
+                            "@MatKhauMoi", hashMoi);
+
+                        cmdUpdate.Parameters.AddWithValue(
+                            "@MaNV", maNV);
+
+                        cmdUpdate.Parameters.AddWithValue(
+                            "@MatKhauCu", matKhauDaBam);
+
+                        cmdUpdate.ExecuteNonQuery();
+                    }
+                }
+
+                return true;
             }
         }
+
         public string ThuDangKy()
         {
             string matKhau = "123456";
@@ -124,6 +160,7 @@ namespace QuanLyChamCong
 
             return "Thêm thất bại! Có thể mã nhân viên đã tồn tại.";
         }
+
         public bool CheckIn(string maNV, string ip)
         {
             try
@@ -132,14 +169,14 @@ namespace QuanLyChamCong
                 {
                     conn.Open();
 
-                    // Kiểm tra nhân viên đã chấm công hôm nay chưa
                     string sqlKiemTra = @"
                 SELECT COUNT(*)
                 FROM ChamCong
                 WHERE MaNV = @MaNV
                   AND NgayChamCong = @NgayChamCong";
 
-                    using (SqlCommand cmdKiemTra = new SqlCommand(sqlKiemTra, conn))
+                    using (SqlCommand cmdKiemTra =
+                        new SqlCommand(sqlKiemTra, conn))
                     {
                         cmdKiemTra.Parameters.AddWithValue("@MaNV", maNV);
                         cmdKiemTra.Parameters.AddWithValue(
@@ -148,12 +185,9 @@ namespace QuanLyChamCong
                         int soBanGhi = (int)cmdKiemTra.ExecuteScalar();
 
                         if (soBanGhi > 0)
-                        {
                             return false;
-                        }
                     }
 
-                    // Chưa chấm công hôm nay thì tạo bản ghi mới
                     DateTime gioVao = DateTime.Now;
 
                     string trangThai =
@@ -163,11 +197,12 @@ namespace QuanLyChamCong
 
                     string sqlThem = @"
                 INSERT INTO ChamCong
-                    (MaNV, NgayChamCong, GioVao, IP, TrangThai)
+                    (MaNV, NgayChamCong, GioVao, IP, TrangThai, MaCa)
                 VALUES
-                    (@MaNV, @NgayChamCong, @GioVao, @IP, @TrangThai)";
+                    (@MaNV, @NgayChamCong, @GioVao, @IP, @TrangThai, @MaCa)";
 
-                    using (SqlCommand cmdThem = new SqlCommand(sqlThem, conn))
+                    using (SqlCommand cmdThem =
+                        new SqlCommand(sqlThem, conn))
                     {
                         cmdThem.Parameters.AddWithValue("@MaNV", maNV);
                         cmdThem.Parameters.AddWithValue(
@@ -175,6 +210,7 @@ namespace QuanLyChamCong
                         cmdThem.Parameters.AddWithValue("@GioVao", gioVao);
                         cmdThem.Parameters.AddWithValue("@IP", ip);
                         cmdThem.Parameters.AddWithValue("@TrangThai", trangThai);
+                        cmdThem.Parameters.AddWithValue("@MaCa", "HC");
 
                         return cmdThem.ExecuteNonQuery() > 0;
                     }
@@ -185,6 +221,7 @@ namespace QuanLyChamCong
                 return false;
             }
         }
+
         public bool CheckOut(string maNV)
         {
             try
@@ -227,10 +264,19 @@ namespace QuanLyChamCong
                     conn.Open();
 
                     string sql = @"
-                SELECT NgayChamCong, GioVao, GioRa, IP, TrangThai
-                FROM ChamCong
-                WHERE MaNV = @MaNV
-                ORDER BY NgayChamCong DESC";
+    SELECT 
+        cc.NgayChamCong,
+        cc.GioVao,
+        cc.GioRa,
+        cc.IP,
+        cc.TrangThai,
+        cc.MaCa,
+        cl.TenCa
+    FROM ChamCong AS cc
+    INNER JOIN CaLam AS cl
+        ON cc.MaCa = cl.MaCa
+    WHERE cc.MaNV = @MaNV
+    ORDER BY cc.NgayChamCong DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
@@ -281,13 +327,13 @@ namespace QuanLyChamCong
                 conn.Open();
 
                 string sql = @"UPDATE NhanVien
-                       SET MatKhau = @MatKhau
-                       WHERE MaNV = @MaNV";
+       SET MatKhauHash = @MatKhauHash
+       WHERE MaNV = @MaNV";
 
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue(
-                        "@MatKhau",
+                        "@MatKhauHash",
                         PasswordHelper.BamMatKhau(matKhauMoi)
                     );
 

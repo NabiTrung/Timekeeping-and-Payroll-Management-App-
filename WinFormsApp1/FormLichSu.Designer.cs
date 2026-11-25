@@ -73,6 +73,7 @@
             Controls.Add(dgvLichSu);
             Name = "FormLichSu";
             Text = "FormLichSu";
+            Load += FormLichSu_Load;
             ((System.ComponentModel.ISupportInitialize)dgvLichSu).EndInit();
             ResumeLayout(false);
         }
